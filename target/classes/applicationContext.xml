@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                http://www.springframework.org/schema/beans/spring-beans.xsd
+                http://www.springframework.org/schema/aop
+                http://www.springframework.org/schema/aop/spring-aop.xsd
+                http://www.springframework.org/schema/tx
+                http://www.springframework.org/schema/tx/spring-tx.xsd
+                http://www.springframework.org/schema/context
+                http://www.springframework.org/schema/context/spring-context.xsd">
+    <!--dataSource-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <property name="driverClassName" value="${jdbc.driverClass}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!--配置初始化大小、最大、最小-->
+        <property name="initialSize" value="${jdbc.init}"/>
+        <property name="minIdle" value="${jdbc.minIdle}"/>
+        <property name="maxActive" value="${jdbc.maxActive}" />
+        <!--配置获取连接等待超时的时间，单位时毫秒-->
+        <property name="maxWait" value="60000"/>
+        <!--配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位时毫秒-->
+        <property name="timeBetweenEvictionRunsMillis" value="60000"/>
+        <!--配置一个连接在池中最小生存时间，单位时毫秒-->
+        <property name="minEvictableIdleTimeMillis" value="30000"/>
+    </bean>
+    <!--生产sqlSessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入连接池-->
+        <property name="dataSource" ref="dataSource"/>
+        <!--注入dao-mapper文件信息，如果映射文件和dao接口，同包且同名，则此配置可省略-->
+        <property name="mapperLocations">
+            <list>
+                <value>classpath:com/zlf/dao/*.xml</value>
+            </list>
+        </property>
+        <property name="typeAliasesPackage" value="com.zlf.entity"/>
+        <property name="plugins">
+            <!--分页插件-->
+            <array>
+                <bean class="com.github.pagehelper.PageInterceptor">
+                    <property name="properties">
+                        <props>
+                            <!--页号调整到合理的值-->
+                            <prop key="reasonable">true</prop>
+                        </props>
+                    </property>
+                </bean>
+            </array>
+        </property>
+    </bean>
+    <!--mapperScannerConfigurer-->
+    <bean id="mapperScannerConfigurer9" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--dao接口所在的包，如果有多个包，可以以逗号或分号分隔-->
+        <property name="basePackage" value="com.zlf.dao"></property>
+        <!--如果工厂只有一个SqlSessionFactory的bean，可以省略-->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+    </bean>
+    <!--引入一个事务管理器，其中依赖dataSource，借以获得连接，进而控制事务逻辑-->
+    <bean id="tx" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--告知spring注解位置-->
+    <context:component-scan base-package="com.zlf" use-default-filters="true" >
+        <!--例外：Controller不扫描注解，mvc.xml中扫描-->
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+    <!--@Transactional-->
+    <tx:annotation-driven transaction-manager="tx"></tx:annotation-driven>
+    <!--添加如下配置，启用aop注解-->
+    <aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+</beans>
